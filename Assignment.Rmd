@@ -1,0 +1,97 @@
+# Practical Machine Learning Assignment WirteUp
+
+## Synopsis
+### This Project was created as part of Practical Machine Learning course assignment to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases.
+###  https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+###  https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+## Data Loading  & Data Cleaning ( Training Data)
+```{r echo = TRUE}
+setwd("D:\\Learning\\Coursera\\Data_Scientist\\Assignments\\Month8_Week4")
+trainfileURL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+download.file(trainfileURL, destfile="pml-training.csv")
+trainFile <- read.csv("pml-training.csv",na.strings=c('','NA'))
+str(trainFile)
+dim(trainFile)
+```
+### From Above, we notice  that lot of variables having blank & NA values, so filtering those values with NA into R.for which below commands will be used
+```{r echo = TRUE}
+temp <-  trainFile[,!apply(trainFile,2,function(x) any(is.na(x)))]
+pml_training <-  temp[,-c(1:7)]
+dim(pml_training)
+```
+
+## Data Loading  & Data Cleaning ( Test Data)
+
+```{r echo = TRUE}
+setwd("D:\\Learning\\Coursera\\Data_Scientist\\Assignments\\Month8_Week4")
+testfileURL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+download.file(testfileURL, destfile="pml-testing.csv")
+testFile <- read.csv("pml-testing.csv",na.strings=c('','NA'))
+str(testFile)
+dim(testFile)
+```
+### From Above, we notice  that lot of variables having blank & NA values, so filtering those values with NA into R.for which below commands will be used
+```{r echo = TRUE}
+temp = testFile[,!apply(testFile,2,function(x) any(is.na(x)) )]
+pml_testing = temp[,-c(1:7)]
+dim(pml_testing)
+```
+
+## Cross Validation
+### To achive cross validation, above training data will be split into 60:40 ratio.
+
+```{r echo = TRUE}
+library('randomForest')
+library('caret')
+library('e1071')
+library('ggplot2')
+library("rpart.plot")
+crossVal <- createDataPartition(y=pml_training$classe, p=0.6, list=FALSE)
+subTraining <- pml_training[crossVal,]
+subTesting <-  pml_training[-crossVal,]
+dim(subTraining)
+dim(subTesting)
+```
+
+## Modeling
+### To predict the best model we start with regression & packaged trees and then find the accuracy of this model by using classe variable
+```{r echo = TRUE}
+rpartModfit <- train(classe ~ .,method='rpart',data=subTraining)
+```
+### Now predicting the model with sub test data
+
+```{r echo = TRUE}
+rpartPred <- predict(rpartModfit,newdata=subTesting)
+rpartconfMat=confusionMatrix(rpartPred,subTesting$classe)
+rpartconfMat$table
+rpartconfMat$overall[1]
+```
+
+### From above Accuracy of comes to 0.5 for this Model fit. So rejecting this model and proceed with one of the Random Forest Method, Which is one of the most accurate predicting model to fit
+```{r echo = TRUE}
+rfModFit <- randomForest(classe~.,data=subTraining,method='class')
+rfPred <- predict(rfModFit,subTesting,type='class')
+qplot(roll_belt, magnet_dumbbell_y, colour=classe, data=subTraining)
+```
+
+### Now predicting the accuracy of random forest model
+```{r echo = TRUE}
+rfconfMat=confusionMatrix(rfPred,subTesting$classe)
+rfconfMat$table
+rfconfMat$overall[1]
+```
+
+## Conclusion
+### From the above, I can conclude that accuracy of random forest is very close to 1, So, I am considering this model is most accurate and proceeding with fitting this model on test data
+
+```{r echo = TRUE}
+finalPred =  predict(rfModFit,pml_testing,type='class')
+    nofiles = length(finalPred)
+    for (i in 1:nofiles){
+        filename =  paste0("problem_id",i,".txt")
+        write.table(finalPred[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+    }
+    finalPred
+```
+
